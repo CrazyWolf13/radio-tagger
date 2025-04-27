@@ -1,0 +1,9 @@
+nix-shell -p python312 \
+    python312Packages.fastapi \
+    python312Packages.requests \
+    python312Packages.uvicorn \
+    python312Packages.jinja2 \
+    python312Packages.pillow \
+    python312Packages.requests \
+    python312Packages.python-multipart \
+    python312Packages.aiofiles

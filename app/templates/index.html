@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Radio Streamer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .form-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .stream-list {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .stream-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .stream-item:last-child {
+            border-bottom: none;
+        }
+        .message {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Radio Streamer</h1>
+    
+    {% if message %}
+    <div class="message">
+        {{ message }}
+    </div>
+    {% endif %}
+    
+    <div class="form-container">
+        <h2>Add New Radio Stream</h2>
+        <form action="/add_stream" method="post">
+            <div>
+                <label for="station_name">Station Name:</label>
+                <input type="text" id="station_name" name="station_name" placeholder="e.g. Energy Zuerich" required>
+            </div>
+            <div>
+                <label for="stream_url">Stream URL:</label>
+                <input type="text" id="stream_url" name="stream_url" placeholder="Enter direct stream URL (e.g. http://example.com/stream.mp3)" required>
+            </div>
+            <button type="submit">Add Stream</button>
+        </form>
+    </div>
+    
+    <div class="stream-list">
+        <h2>Current Streams</h2>
+        {% if streams %}
+            {% for stream_id, stream in streams.items() %}
+                <div class="stream-item">
+                    <h3>{{ stream.name }}</h3>
+                    <p>Current Song: {{ stream.current_song }}</p>
+                    <p>
+                        <a href="/stream/{{ stream_id }}">View Stream</a> |
+                        <a href="/watch/{{ stream_id }}" target="_blank">Clean View</a> |
+                        <a href="/refresh/{{ stream_id }}">Refresh</a> |
+                        <a href="/remove/{{ stream_id }}">Remove</a>
+                    </p>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No streams added yet.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
