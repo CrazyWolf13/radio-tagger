@@ -1,33 +1,128 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Radio Streamer</title>
+    <title>Radio-Tagger</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=cached,delete,description,radio" />
     <style>
+        :root {
+            --bg-color: #f5f5f5;
+            --text-color: #333;
+            --card-bg: white;
+            --border-color: #eee;
+            --input-border: #dee2e6;
+            --url-box-bg: #f8f9fa;
+            --button-bg: #4CAF50;
+            --button-hover: #45a049;
+            --message-bg: #d4edda;
+            --message-text: #155724;
+            --link-color: #007bff;
+            --footer-text: #6c757d;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --card-bg: #2d2d2d;
+            --border-color: #404040;
+            --input-border: #404040;
+            --url-box-bg: #333333;
+            --button-bg: #45a049;
+            --button-hover: #4CAF50;
+            --message-bg: #1c3d1f;
+            --message-text: #a3ffa3;
+            --link-color: #79c0ff;
+            --footer-text: #9a9a9a;
+        }
+
         body {
             font-family: Arial, sans-serif;
             max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f5f5f5;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
+
         h1, h2 {
-            color: #333;
+            color: var(--text-color);
         }
-        .form-container {
-            background-color: white;
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .theme-switch-wrapper {
+            display: flex;
+            align-items: center;
+        }
+
+        .theme-switch {
+            display: inline-block;
+            height: 34px;
+            position: relative;
+            width: 60px;
+        }
+
+        .theme-switch input {
+            display: none;
+        }
+
+        .slider {
+            background-color: #ccc;
+            bottom: 0;
+            cursor: pointer;
+            left: 0;
+            position: absolute;
+            right: 0;
+            top: 0;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            background-color: #fff;
+            bottom: 4px;
+            content: "";
+            height: 26px;
+            left: 4px;
+            position: absolute;
+            transition: .4s;
+            width: 26px;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--button-bg);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .form-container, .stream-list {
+            background-color: var(--card-bg);
             padding: 20px;
             border-radius: 5px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
         }
+
         input[type="text"] {
             padding: 8px;
             margin: 5px 0;
             width: 100%;
             box-sizing: border-box;
+            background-color: var(--url-box-bg);
+            color: var(--text-color);
+            border: 1px solid var(--input-border);
         }
+
         button {
-            background-color: #4CAF50;
+            background-color: var(--button-bg);
             color: white;
             padding: 10px 15px;
             border: none;
@@ -35,33 +130,95 @@
             cursor: pointer;
             margin-top: 10px;
         }
+
         button:hover {
-            background-color: #45a049;
+            background-color: var(--button-hover);
         }
-        .stream-list {
-            background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
+
         .stream-item {
             padding: 15px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 10px;
         }
+
         .stream-item:last-child {
             border-bottom: none;
         }
+
         .message {
-            background-color: #d4edda;
-            color: #155724;
+            background-color: var(--message-bg);
+            color: var(--message-text);
             padding: 15px;
             margin-bottom: 20px;
             border-radius: 4px;
         }
+
+        .url-box {
+            background-color: var(--url-box-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            padding: 10px;
+            margin: 5px 0;
+            word-break: break-all;
+            font-family: monospace;
+        }
+
+        .controls {
+            margin-top: 10px;
+        }
+
+        .controls a {
+            margin-right: 15px;
+            color: var(--link-color);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .controls a:hover {
+            opacity: 0.8;
+        }
+        
+        .material-symbols-outlined {
+            font-size: 20px;
+            vertical-align: middle;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding: 20px 0;
+            text-align: center;
+            color: var(--footer-text);
+            font-size: 14px;
+        }
+
+        .footer a {
+            color: var(--link-color);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
-    <h1>Radio Streamer</h1>
+    <div class="header">
+        <h1>Radio-Tagger</h1>
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <a href="https://www.radio-browser.info/map" target="_blank" title="Find Radio Streams">
+                <span class="material-symbols-outlined">radio</span>
+                Find Radios
+            </a>
+            <div class="theme-switch-wrapper">
+                <label class="theme-switch" for="theme-toggle">
+                    <input type="checkbox" id="theme-toggle" />
+                    <div class="slider"></div>
+                </label>
+            </div>
+        </div>
+    </div>
     
     {% if message %}
     <div class="message">
@@ -80,6 +237,10 @@
                 <label for="stream_url">Stream URL:</label>
                 <input type="text" id="stream_url" name="stream_url" placeholder="Enter direct stream URL (e.g. http://example.com/stream.mp3)" required>
             </div>
+            <div>
+                <label for="station_icon">Station Icon URL (optional):</label>
+                <input type="text" id="station_icon" name="station_icon" placeholder="Enter icon URL (e.g. http://example.com/icon.png)">
+            </div>
             <button type="submit">Add Stream</button>
         </form>
     </div>
@@ -91,17 +252,81 @@
                 <div class="stream-item">
                     <h3>{{ stream.name }}</h3>
                     <p>Current Song: {{ stream.current_song }}</p>
-                    <p>
-                        <a href="/stream/{{ stream_id }}">View Stream</a> |
-                        <a href="/watch/{{ stream_id }}" target="_blank">Clean View</a> |
-                        <a href="/refresh/{{ stream_id }}">Refresh</a> |
-                        <a href="/remove/{{ stream_id }}">Remove</a>
-                    </p>
+                    
+                    <div>
+                        <strong>Direct FFmpeg URL:</strong>
+                        <div class="url-box">
+                            <a href="{{ stream.direct_ffmpeg_url }}" target="_blank">{{ stream.direct_ffmpeg_url }}</a>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <strong>Redirect URL:</strong>
+                        <div class="url-box">
+                            <a href="{{ stream.redirect_url }}" target="_blank">{{ stream.redirect_url }}</a>
+                        </div>
+                    </div>
+                    
+                    <div class="controls">
+                        <a href="/refresh/{{ stream_id }}" title="Refresh">
+                            <span class="material-symbols-outlined">cached</span>
+                            Refresh
+                        </a>
+                        <a href="/logs/{{ stream_id }}" target="_blank" title="View Logs">
+                            <span class="material-symbols-outlined">description</span>
+                            Logs
+                        </a>
+                        <a href="/remove/{{ stream_id }}" onclick="return confirm('Are you sure you want to remove this stream?')" title="Remove">
+                            <span class="material-symbols-outlined">delete</span>
+                            Remove
+                        </a>
+                    </div>
                 </div>
             {% endfor %}
         {% else %}
             <p>No streams added yet.</p>
         {% endif %}
     </div>
+
+    <div class="footer">
+        Developed by <a href="https://github.com/CrazyWolf13" target="_blank">CrazyWolf13</a>. Licensed under GPL-3.0 © <span id="current-year"></span>. <a href="https://github.com/CrazyWolf13/radio-tagger" target="_blank">Get the Source Code</a>.
+    </div>
+
+    <script>
+        // Set current year in footer
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
+        // Function to determine preferred color scheme
+        function getPreferredTheme() {
+            if (localStorage.getItem('theme')) {
+                return localStorage.getItem('theme');
+            }
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        // Set initial theme
+        const savedTheme = getPreferredTheme();
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        
+        // Set the toggle state based on saved theme
+        const themeToggle = document.getElementById('theme-toggle');
+        themeToggle.checked = savedTheme === 'dark';
+
+        // Theme toggle functionality
+        themeToggle.addEventListener('change', function() {
+            const theme = this.checked ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+        });
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            if (!localStorage.getItem('theme')) {
+                const theme = e.matches ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', theme);
+                themeToggle.checked = e.matches;
+            }
+        });
+    </script>
 </body>
 </html>

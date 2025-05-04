@@ -116,7 +116,7 @@ def metadata_updater(stream_id: str, stream_url: str, station_name: str):
                 song_title = match.group(1)
                 artwork_url = match.group(2)
             else:
-                song_title = "Now Playing"
+                song_title = station_name  # Default to station name
                 artwork_url = None
             
             # Clean up the song title
@@ -124,6 +124,10 @@ def metadata_updater(stream_id: str, stream_url: str, station_name: str):
             
             # Update stream info
             streams[stream_id]["current_song"] = song_title
+            
+            # Use fallback icon if no artwork URL
+            if not artwork_url and streams[stream_id].get("icon"):
+                artwork_url = streams[stream_id]["icon"]
             
             # Generate new overlay
             overlay_path = generate_overlay_image(stream_id, station_name, song_title, artwork_url)
@@ -157,7 +161,7 @@ def start_ffmpeg_stream(stream_id: str):
     
     # Ensure we have an overlay image
     if not os.path.exists(overlay_image):
-        generate_overlay_image(stream_id, station_name, "Starting stream...", None)
+        generate_overlay_image(stream_id, station_name, station_name, stream_info.get("icon"))
     
     # Get a free port for this stream
     stream_port = find_free_port()
@@ -180,7 +184,7 @@ def start_ffmpeg_stream(stream_id: str):
         "-vf", "scale=1280:720",
         "-f", "matroska",    # Use Matroska format for streaming
         "-listen", "1",      # Enable HTTP server in FFmpeg
-        f"http://127.0.0.1:{stream_port}/live.mkv"  # HTTP stream endpoint
+        f"http://0.0.0.0:{stream_port}/live.mkv"  # Changed to 0.0.0.0 to allow external access
     ]
     
     try:
@@ -213,12 +217,12 @@ def start_ffmpeg_stream(stream_id: str):
         # Store log file handle and path
         stream_info["log_fd"] = log_fd
         stream_info["log_file"] = log_file
-        stream_info["stream_url"] = f"http://127.0.0.1:{stream_port}/live.mkv"
+        stream_info["stream_url"] = f"http://0.0.0.0:{stream_port}/live.mkv"
         
         # Set last update time
         stream_info["last_update"] = time.time()
         
-        print(f"Started FFmpeg for {station_name}, streaming at http://127.0.0.1:{stream_port}/live.mkv")
+        print(f"Started FFmpeg for {station_name}, streaming at http://0.0.0.0:{stream_port}/live.mkv")
         
         # Wait a moment for FFmpeg to start up
         time.sleep(2)
@@ -235,6 +239,19 @@ def restart_ffmpeg_stream(stream_id: str):
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Main page with form to add streams and list of existing streams"""
+    # Get the host from the request to build proper URLs
+    host = request.headers.get('host', 'localhost:8000')
+    
+    # If accessed via IP, use that in the URLs
+    host_ip = host.split(':')[0]
+    app_port = host.split(':')[1] if ':' in host else '8000'
+    
+    # Build stream URLs dynamically based on how the page was accessed
+    for stream_id, stream in streams.items():
+        if 'port' in stream:
+            stream['direct_ffmpeg_url'] = f"http://{host_ip}:{stream['port']}/live.mkv"
+            stream['redirect_url'] = f"http://{host}/redirect/{stream_id}"
+    
     return templates.TemplateResponse(
         "index.html", 
         {
@@ -247,7 +264,8 @@ async def index(request: Request):
 async def add_stream(
     request: Request, 
     station_name: str = Form(...), 
-    stream_url: str = Form(...)
+    stream_url: str = Form(...),
+    station_icon: Optional[str] = Form(None)
 ):
     """Add a new stream and start it"""
     # Generate a unique ID for the stream
@@ -276,7 +294,8 @@ async def add_stream(
         "id": stream_id,
         "name": station_name,
         "url": stream_url,
-        "current_song": "Starting...",
+        "icon": station_icon if station_icon else None,
+        "current_song": station_name,  # Default to station name
         "process": None,
         "last_update": time.time(),
         "ffmpeg_needs_update": False
@@ -301,121 +320,24 @@ async def add_stream(
     )
     metadata_thread.start()
     
-    return templates.TemplateResponse(
-        "index.html", 
-        {
-            "request": request, 
-            "streams": streams,
-            "message": f"Added stream: {station_name}"
-        }
-    )
+    return RedirectResponse(url="/", status_code=303)
 
-@app.get("/stream/{stream_id}")
-async def get_stream_page(request: Request, stream_id: str):
-    """Page for a specific stream"""
+@app.get("/redirect/{stream_id}")
+async def redirect_to_stream(request: Request, stream_id: str):
+    """Redirect to the direct FFmpeg stream with proper host"""
     if stream_id not in streams:
         raise HTTPException(status_code=404, detail="Stream not found")
     
-    return templates.TemplateResponse(
-        "stream.html", 
-        {
-            "request": request, 
-            "stream": streams[stream_id]
-        }
-    )
-
-@app.get("/watch/{stream_id}")
-async def watch_stream(request: Request, stream_id: str):
-    """Minimal page with just the video player"""
-    if stream_id not in streams:
-        raise HTTPException(status_code=404, detail="Stream not found")
+    # Get the stream port
+    port = streams[stream_id].get("port")
+    if not port:
+        raise HTTPException(status_code=500, detail="Stream port not found")
     
-    return templates.TemplateResponse(
-        "watch.html", 
-        {
-            "request": request, 
-            "stream": streams[stream_id],
-            "stream_id": stream_id
-        }
-    )
-
-async def stream_generator(url):
-    """Generate stream data from FFmpeg HTTP server"""
-    try:
-        with requests.get(url, stream=True, timeout=60) as response:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    yield chunk
-    except Exception as e:
-        print(f"Streaming error: {e}")
-        yield b''
-
-@app.get("/mp4/{stream_id}")
-async def get_stream(stream_id: str):
-    """Proxy the stream from FFmpeg HTTP server"""
-    if stream_id not in streams:
-        raise HTTPException(status_code=404, detail="Stream not found")
+    # Get the host from the request
+    host = request.headers.get('host', 'localhost').split(':')[0]
     
-    # Check if FFmpeg process is running
-    if not streams[stream_id].get("process") or streams[stream_id]["process"].poll() is not None:
-        # Restart the FFmpeg process if it's not running
-        if not start_ffmpeg_stream(stream_id):
-            raise HTTPException(status_code=500, detail="Failed to start stream")
-    
-    # Get the stream URL from FFmpeg's HTTP server
-    stream_url = streams[stream_id].get("stream_url")
-    if not stream_url:
-        raise HTTPException(status_code=500, detail="Stream URL not found")
-    
-    # Create a streaming response to proxy the FFmpeg HTTP stream
-    return StreamingResponse(
-        stream_generator(stream_url),
-        media_type="video/x-matroska",
-        headers={
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Access-Control-Allow-Origin": "*"
-        }
-    )
-
-@app.get("/logs/{stream_id}")
-async def get_stream_logs(stream_id: str):
-    """Return the FFmpeg logs for a stream"""
-    if stream_id not in streams:
-        raise HTTPException(status_code=404, detail="Stream not found")
-    
-    log_file = streams[stream_id].get("log_file")
-    if not log_file or not os.path.exists(log_file):
-        raise HTTPException(status_code=404, detail="Log file not found")
-    
-    try:
-        with open(log_file, "r") as f:
-            log_content = f.read()
-        
-        return HTMLResponse(f"""
-        <html>
-        <head>
-            <title>FFmpeg Logs for {streams[stream_id]['name']}</title>
-            <style>
-                body {{ font-family: monospace; background-color: #000; color: #0f0; padding: 20px; }}
-                h1 {{ color: #fff; }}
-                pre {{ background-color: #111; padding: 15px; overflow-x: auto; white-space: pre-wrap; }}
-                .refresh {{ display: inline-block; margin: 10px 0; padding: 8px 16px; background: #333; 
-                           color: #fff; text-decoration: none; border-radius: 4px; }}
-                .cmd {{ color: #ff9; margin-bottom: 10px; }}
-            </style>
-            <meta http-equiv="refresh" content="5">
-        </head>
-        <body>
-            <h1>FFmpeg Logs for {streams[stream_id]['name']}</h1>
-            <a href="/stream/{stream_id}" class="refresh">Back to Stream</a>
-            <a href="/logs/{stream_id}" class="refresh">Refresh Logs</a>
-            <pre class="cmd">Command: {' '.join(streams[stream_id]['process'].args if streams[stream_id].get('process') else ['No process running'])}</pre>
-            <pre>{log_content}</pre>
-        </body>
-        </html>
-        """)
-    except Exception as e:
-        return HTMLResponse(f"<html><body>Error reading logs: {e}</body></html>")
+    # Return a redirect to the direct FFmpeg URL using the same host
+    return RedirectResponse(url=f"http://{host}:{port}/live.mkv", status_code=301)
 
 @app.get("/refresh/{stream_id}")
 async def refresh_stream(stream_id: str):
@@ -438,8 +360,8 @@ async def refresh_stream(stream_id: str):
     # Start a new FFmpeg process
     start_ffmpeg_stream(stream_id)
     
-    # Redirect back to the stream page
-    return RedirectResponse(url=f"/stream/{stream_id}")
+    # Redirect back to the index page
+    return RedirectResponse(url="/")
 
 @app.get("/remove/{stream_id}")
 async def remove_stream(stream_id: str):
@@ -483,5 +405,45 @@ async def remove_stream(stream_id: str):
     
     return RedirectResponse(url="/")
 
+@app.get("/logs/{stream_id}")
+async def get_stream_logs(stream_id: str):
+    """Return the FFmpeg logs for a stream"""
+    if stream_id not in streams:
+        raise HTTPException(status_code=404, detail="Stream not found")
+    
+    log_file = streams[stream_id].get("log_file")
+    if not log_file or not os.path.exists(log_file):
+        raise HTTPException(status_code=404, detail="Log file not found")
+    
+    try:
+        with open(log_file, "r") as f:
+            log_content = f.read()
+        
+        return HTMLResponse(f"""
+        <html>
+        <head>
+            <title>FFmpeg Logs for {streams[stream_id]['name']}</title>
+            <style>
+                body {{ font-family: monospace; background-color: #000; color: #0f0; padding: 20px; }}
+                h1 {{ color: #fff; }}
+                pre {{ background-color: #111; padding: 15px; overflow-x: auto; white-space: pre-wrap; }}
+                .refresh {{ display: inline-block; margin: 10px 0; padding: 8px 16px; background: #333; 
+                           color: #fff; text-decoration: none; border-radius: 4px; }}
+                .cmd {{ color: #ff9; margin-bottom: 10px; }}
+            </style>
+            <meta http-equiv="refresh" content="5">
+        </head>
+        <body>
+            <h1>FFmpeg Logs for {streams[stream_id]['name']}</h1>
+            <a href="/" class="refresh">Back to Index</a>
+            <pre class="cmd">Command: {' '.join(streams[stream_id]['process'].args if streams[stream_id].get('process') else ['No process running'])}</pre>
+            <pre>{log_content}</pre>
+        </body>
+        </html>
+        """)
+    except Exception as e:
+        return HTMLResponse(f"<html><body>Error reading logs: {e}</body></html>")
+
 if __name__ == "__main__":
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))  # Change to the directory of this script
     uvicorn.run(app, host="0.0.0.0", port=8000)

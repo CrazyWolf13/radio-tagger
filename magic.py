@@ -4,7 +4,7 @@ import time
 from PIL import Image, ImageDraw, ImageFont
 import io
 
-stream_url = "https://energyzuerich.ice.infomaniak.ch/energyzuerich-high.mp3"
+stream_url = "https://stream.streambase.ch/argovia/mp3-192/radiobrowser/"
 
 def get_icy_metadata(url):
     headers = {"Icy-MetaData": "1", "User-Agent": "Winamp"}
