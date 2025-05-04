@@ -40,14 +40,11 @@ def get_icy_metadata(url):
         r = requests.get(url, headers=headers, stream=True, timeout=5)
         print(f"Headers received: {r.headers}")  # Debug: print all headers
         metaint = int(r.headers.get("icy-metaint", 0))
-        print(f"Metaint value: {metaint}")  # Debug: print metaint value
         if metaint:
             r.raw.read(metaint)
             meta_length = int.from_bytes(r.raw.read(1), byteorder='big') * 16
-            print(f"Meta length: {meta_length}")  # Debug: print meta length
             if meta_length > 0:
                 metadata = r.raw.read(meta_length).decode('utf-8', errors='ignore')
-                print(f"Raw metadata: {repr(metadata)}")  # Debug: print raw metadata
                 return metadata
         else:
             print("No metaint value found in headers")
@@ -460,7 +457,7 @@ async def get_stream_logs(stream_id: str):
                 h1 {{ color: #fff; }}
                 pre {{ background-color: #111; padding: 15px; overflow-x: auto; white-space: pre-wrap; }}
                 .refresh {{ display: inline-block; margin: 10px 0; padding: 8px 16px; background: #333; 
-                           color: #fff; text-decoration: none; border-radius: 4px; }}
+                            color: #fff; text-decoration: none; border-radius: 4px; }}
                 .cmd {{ color: #ff9; margin-bottom: 10px; }}
             </style>
             <meta http-equiv="refresh" content="5">
@@ -478,4 +475,4 @@ async def get_stream_logs(stream_id: str):
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))  # Change to the directory of this script
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)

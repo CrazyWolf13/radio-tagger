@@ -139,6 +139,22 @@
             padding: 15px;
             border-bottom: 1px solid var(--border-color);
             margin-bottom: 10px;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .stream-icon {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            border-radius: 8px;
+            background-color: var(--url-box-bg);
+            flex-shrink: 0;
+        }
+
+        .stream-info {
+            flex: 1;
         }
 
         .stream-item:last-child {
@@ -231,7 +247,7 @@
         <form action="/add_stream" method="post">
             <div>
                 <label for="station_name">Station Name:</label>
-                <input type="text" id="station_name" name="station_name" placeholder="e.g. Energy Zuerich" required>
+                <input type="text" id="station_name" name="station_name" placeholder="e.g. Radio Example" required>
             </div>
             <div>
                 <label for="stream_url">Stream URL:</label>
@@ -250,36 +266,41 @@
         {% if streams %}
             {% for stream_id, stream in streams.items() %}
                 <div class="stream-item">
-                    <h3>{{ stream.name }}</h3>
-                    <p>Current Song: {{ stream.current_song }}</p>
-                    
-                    <div>
-                        <strong>Direct FFmpeg URL:</strong>
-                        <div class="url-box">
-                            <a href="{{ stream.direct_ffmpeg_url }}" target="_blank">{{ stream.direct_ffmpeg_url }}</a>
+                    {% if stream.icon %}
+                        <img src="{{ stream.icon }}" alt="{{ stream.name }}" class="stream-icon" onerror="this.style.display='none'">
+                    {% endif %}
+                    <div class="stream-info">
+                        <h3>{{ stream.name }}</h3>
+                        <p>Current Song: {{ stream.current_song }}</p>
+                        
+                        <div>
+                            <strong>Direct FFmpeg URL:</strong>
+                            <div class="url-box">
+                                <a href="{{ stream.direct_ffmpeg_url }}" target="_blank">{{ stream.direct_ffmpeg_url }}</a>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div>
-                        <strong>Redirect URL:</strong>
-                        <div class="url-box">
-                            <a href="{{ stream.redirect_url }}" target="_blank">{{ stream.redirect_url }}</a>
+                        
+                        <div>
+                            <strong>Redirect URL:</strong>
+                            <div class="url-box">
+                                <a href="{{ stream.redirect_url }}" target="_blank">{{ stream.redirect_url }}</a>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="controls">
-                        <a href="/refresh/{{ stream_id }}" title="Refresh">
-                            <span class="material-symbols-outlined">cached</span>
-                            Refresh
-                        </a>
-                        <a href="/logs/{{ stream_id }}" target="_blank" title="View Logs">
-                            <span class="material-symbols-outlined">description</span>
-                            Logs
-                        </a>
-                        <a href="/remove/{{ stream_id }}" onclick="return confirm('Are you sure you want to remove this stream?')" title="Remove">
-                            <span class="material-symbols-outlined">delete</span>
-                            Remove
-                        </a>
+                        
+                        <div class="controls">
+                            <a href="/refresh/{{ stream_id }}" title="Refresh">
+                                <span class="material-symbols-outlined">cached</span>
+                                Refresh
+                            </a>
+                            <a href="/logs/{{ stream_id }}" target="_blank" title="View Logs">
+                                <span class="material-symbols-outlined">description</span>
+                                Logs
+                            </a>
+                            <a href="/remove/{{ stream_id }}" onclick="return confirm('Are you sure you want to remove this stream?')" title="Remove">
+                                <span class="material-symbols-outlined">delete</span>
+                                Remove
+                            </a>
+                        </div>
                     </div>
                 </div>
             {% endfor %}
