@@ -38,13 +38,19 @@ def get_icy_metadata(url):
     headers = {"Icy-MetaData": "1", "User-Agent": "Winamp"}
     try:
         r = requests.get(url, headers=headers, stream=True, timeout=5)
+        print(f"Headers received: {r.headers}")  # Debug: print all headers
         metaint = int(r.headers.get("icy-metaint", 0))
+        print(f"Metaint value: {metaint}")  # Debug: print metaint value
         if metaint:
             r.raw.read(metaint)
             meta_length = int.from_bytes(r.raw.read(1), byteorder='big') * 16
+            print(f"Meta length: {meta_length}")  # Debug: print meta length
             if meta_length > 0:
                 metadata = r.raw.read(meta_length).decode('utf-8', errors='ignore')
+                print(f"Raw metadata: {repr(metadata)}")  # Debug: print raw metadata
                 return metadata
+        else:
+            print("No metaint value found in headers")
     except Exception as e:
         print(f"Error fetching ICY metadata: {e}")
     return ""
@@ -99,7 +105,9 @@ def find_free_port():
     """Find a free port to use for the FFmpeg stream"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(('', 0))
-        return s.getsockname()[1]
+        s.listen(1)
+        port = s.getsockname()[1]
+        return port
 
 def metadata_updater(stream_id: str, stream_url: str, station_name: str):
     """Thread to update metadata periodically"""
@@ -110,14 +118,22 @@ def metadata_updater(stream_id: str, stream_url: str, station_name: str):
                 break
                 
             metadata = get_icy_metadata(stream_url)
-            match = re.search(r"StreamTitle='([^']+)';.*StreamUrl='([^']+)'", metadata)
+            song_title = None
+            artwork_url = None
             
-            if match:
-                song_title = match.group(1)
-                artwork_url = match.group(2)
-            else:
-                song_title = station_name  # Default to station name
-                artwork_url = None
+            # Parse StreamTitle
+            title_match = re.search(r"StreamTitle='([^']+)';", metadata)
+            if title_match:
+                song_title = title_match.group(1)
+            
+            # Parse StreamUrl (optional)
+            url_match = re.search(r"StreamUrl='([^']+)';", metadata)
+            if url_match:
+                artwork_url = url_match.group(1)
+            
+            # If no title found, default to station name
+            if not song_title:
+                song_title = station_name
             
             # Clean up the song title
             song_title = re.sub(r'\s+[^\w\s-]\s+', ' - ', song_title)
@@ -201,6 +217,13 @@ def start_ffmpeg_stream(stream_id: str):
                 except:
                     print(f"Failed to kill FFmpeg process for {station_name}")
         
+        # Close existing log file handle if open
+        if stream_info.get("log_fd"):
+            try:
+                stream_info["log_fd"].close()
+            except:
+                pass
+        
         # Open log file
         log_fd = open(log_file, "w")
         
@@ -234,6 +257,7 @@ def start_ffmpeg_stream(stream_id: str):
 
 def restart_ffmpeg_stream(stream_id: str):
     """Restart the FFmpeg process for a stream"""
+    print(f"Restarting FFmpeg stream for {stream_id}")
     return start_ffmpeg_stream(stream_id)
 
 @app.get("/", response_class=HTMLResponse)
@@ -345,20 +369,28 @@ async def refresh_stream(stream_id: str):
     if stream_id not in streams:
         raise HTTPException(status_code=404, detail="Stream not found")
     
-    # Kill existing process
+    print(f"Refreshing stream: {stream_id}")
+    
+    # Kill existing process ONLY for this stream
     if streams[stream_id].get("process"):
         try:
+            print(f"Terminating process for stream {stream_id}")
             streams[stream_id]["process"].terminate()
             streams[stream_id]["process"].wait(timeout=2)
         except:
             # If it doesn't terminate nicely, force kill
             try:
                 streams[stream_id]["process"].kill()
+                print(f"Force killed process for stream {stream_id}")
             except:
+                print(f"Failed to kill process for stream {stream_id}")
                 pass
     
     # Start a new FFmpeg process
-    start_ffmpeg_stream(stream_id)
+    if start_ffmpeg_stream(stream_id):
+        print(f"Successfully restarted stream {stream_id}")
+    else:
+        print(f"Failed to restart stream {stream_id}")
     
     # Redirect back to the index page
     return RedirectResponse(url="/")
