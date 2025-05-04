@@ -476,3 +476,11 @@ async def get_stream_logs(stream_id: str):
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))  # Change to the directory of this script
     uvicorn.run(app, host="127.0.0.1", port=8000)
+
+# TODO:
+# move icon to the right
+# Config File
+# Icon/Emoji in title
+# Favicon
+# Testing
+# Deployment
